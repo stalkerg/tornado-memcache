@@ -480,7 +480,11 @@ class _Host:
         else:
             self.weight = 1
 
-        if host.find(":") > 0:
+        self.unix = None
+        if host.startswith("unix:"):
+            #print "detect unix socket"
+            self.unix = host.split(":")[1]
+        elif host.find(":") > 0:
             self.ip, self.port = host.split(":")
             self.port = int(self.port)
         else:
@@ -515,11 +519,18 @@ class _Host:
             return None
         if self.socket:
             return self.socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if self.unix:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        else:        
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Python 2.3-ism:  s.settimeout(1)
         try:
-            s.connect((self.ip, self.port))
+            if self.unix:
+                s.connect(self.unix)
+            else:
+                s.connect((self.ip, self.port))
         except socket.error, msg:
+            print "Can't open socket", msg[1]
             self.mark_dead("connect: %s" % msg[1])
             return None
         self.socket = s
@@ -546,7 +557,7 @@ class _Host:
         self.readline(partial(self._expect_cb, text=text, callback=callback))
         
     def _expect_cb(self, data, text, callback):
-        if data.rstrip() != text:
+        if data != text:
             self.debuglog("while expecting '%s', got unexpected response '%s'" % (text, data))
         callback(data)
     
