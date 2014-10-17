@@ -226,7 +226,7 @@ class Client(object):
                 self.buckets.append(server)
 
     def _get_server(self, key):
-        if isinstance(key, types.TupleType):
+        if isinstance(key, tuple):
             serverhash = key[0]
             key = key[1]
         else:
@@ -369,13 +369,10 @@ class Client(object):
         self._statlog(cmd)
 
         flags = 0
-        if isinstance(val, types.StringTypes):
+        if isinstance(val, bytes) or isinstance(val, str):
             pass
         elif isinstance(val, int):
             flags |= Client._FLAG_INTEGER
-            val = "%d" % val
-        elif isinstance(val, long):
-            flags |= Client._FLAG_LONG
             val = "%d" % val
         else:
             flags |= Client._FLAG_PICKLE
@@ -559,20 +556,21 @@ class _Host:
 
     def expect(self, text, callback):
         self.readline(partial(self._expect_cb, text=text, callback=callback))
-        
+
     def _expect_cb(self, data, text, callback):
         if data != text:
             self.debuglog("while expecting '%s', got unexpected response '%s'" % (text, data))
         callback(data)
-    
+
     def recv(self, rlen, callback):
         self.stream.read_bytes(rlen, callback)
-        
+
     def __str__(self):
         d = ''
         if self.deaduntil:
             d = " (dead until %d)" % self.deaduntil
         return "%s:%d%s" % (self.ip, self.port, d)
+
 
 def _doctest():
     import doctest, memcache
