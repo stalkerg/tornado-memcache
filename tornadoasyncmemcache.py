@@ -92,7 +92,7 @@ class ClientPool(object):
     def _create_clients(self, n):
         assert n >= 0
         return [Client(self._servers, *self._args, **self._kwargs)
-                for x in xrange(n)]
+                for x in range(n)]
 
     def _do(self, cmd, *args, **kwargs):
         if not self._clients:
