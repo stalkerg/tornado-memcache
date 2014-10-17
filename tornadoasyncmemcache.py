@@ -548,7 +548,7 @@ class _Host:
 
     def send_cmd(self, cmd, callback):
 #        print "in sendcmd", repr(cmd), callback
-        self.stream.write(cmd+"\r\n", callback)
+        self.stream.write(cmd.encode("utf-8")+b"\r\n", callback)
         #self.socket.sendall(cmd + "\r\n")
 
     def readline(self, callback):
