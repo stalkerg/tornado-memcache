@@ -552,7 +552,7 @@ class _Host:
         #self.socket.sendall(cmd + "\r\n")
 
     def readline(self, callback):
-        self.stream.read_until("\r\n", callback)
+        self.stream.read_until(b"\r\n", callback)
 
     def expect(self, text, callback):
         self.readline(partial(self._expect_cb, text=text, callback=callback))
