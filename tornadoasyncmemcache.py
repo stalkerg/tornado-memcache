@@ -475,7 +475,7 @@ class _Host:
     _DEAD_RETRY = 30  # number of seconds before retrying a dead server.
 
     def __init__(self, host, debugfunc=None):
-        if isinstance(host, types.TupleType):
+        if isinstance(host, tuple):
             host = host[0]
             self.weight = host[1]
         else:
@@ -588,7 +588,7 @@ if __name__ == "__main__":
     mc = Client(servers, debug=1)
 
     def to_s(val):
-        if not isinstance(val, types.StringTypes):
+        if not isinstance(val, str):
             return "%s (%s)" % (val, type(val))
         return "%s" % val
 
