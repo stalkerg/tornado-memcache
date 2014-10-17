@@ -8,27 +8,27 @@ Example using ClientPool
     import tornado.web
     import tornadoasyncmemcache as memcache
     import time
-    
+
     ccs = memcache.ClientPool(['127.0.0.1:11211'], maxclients=100)
-    
+
     class MainHandler(tornado.web.RequestHandler):
       @tornado.web.asynchronous
       def get(self):
         time_str = time.strftime('%Y-%m-%d %H:%M:%S')
         ccs.set('test_data', 'Hello world @ %s' % time_str,
                 callback=self._get_start)
-    
+
       def _get_start(self, data):
         ccs.get('test_data', callback=self._get_end)
-    
+
       def _get_end(self, data):
         self.write(data)
         self.finish()
-    
+
     application = tornado.web.Application([
       (r"/", MainHandler),
     ])
-    
+
     if __name__ == "__main__":
       application.listen(8888)
       tornado.ioloop.IOLoop.instance().start()
@@ -47,24 +47,29 @@ try:
 except ImportError:
     import pickle
 
-__author__    = "Tornadoified: David Novakovic dpn@dpn.name, original code: Evan Martin <martine@danga.com>"
-__version__   = "1.0"
+__author__ = "Tornadoified: David Novakovic dpn@dpn.name, original code: Evan Martin <martine@danga.com>"
+__version__ = "1.0"
 __copyright__ = "Copyright (C) 2003 Danga Interactive"
-__license__   = "Python"
+__license__ = "Python"
+
 
 class TooManyClients(Exception):
     pass
+
 
 class ClientPool(object):
 
     CMDS = ('get', 'replace', 'set', 'decr', 'incr', 'delete')
 
-    def __init__(self,
-                 servers,
-                 mincached = 0,
-                 maxcached = 0,
-                 maxclients = 0,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        servers,
+        mincached=0,
+        maxcached=0,
+        maxclients=0,
+        *args,
+        **kwargs
+    ):
 
         assert isinstance(mincached, int)
         assert isinstance(maxcached, int)
@@ -106,7 +111,7 @@ class ClientPool(object):
             return partial(self._do, name)
         raise AttributeError("'%s' object has no attribute '%s'" %
             (self.__class__.__name__, name))
-        
+
     def _gen_cb(self, response, c, _cb, *args, **kwargs):
         self._used.remove(c)
         if self._maxcached == 0 or self._maxcached > len(self._clients):
@@ -114,15 +119,16 @@ class ClientPool(object):
         else:
             c.disconnect_all()
         _cb(response, *args, **kwargs)
-    
+
 
 class _Error(Exception):
     pass
 
+
 class Client(object):
     """
     Object representing a pool of memcache servers.
-    
+
     See L{memcache} for an overview.
 
     In all cases where a key is used, the key can be either:
@@ -140,13 +146,11 @@ class Client(object):
     @sort: __init__, set_servers, forget_dead_hosts, disconnect_all, debuglog,\
            set, add, replace, get, get_multi, incr, decr, delete
     """
-    _FLAG_PICKLE  = 1<<0
-    _FLAG_INTEGER = 1<<1
-    _FLAG_LONG    = 1<<2
+    _FLAG_PICKLE = 1 << 0
+    _FLAG_INTEGER = 1 << 1
+    _FLAG_LONG = 1 << 2
 
     _SERVER_RETRIES = 10  # how many times to try finding a free server.
-    
-    
     _ASYNC_CLIENTS = weakref.WeakKeyDictionary()
 
 #    def __new__(cls, servers, max_connections=1000, debug=0, io_loop=None):
@@ -163,7 +167,7 @@ class Client(object):
 #            instance.servers
 #            cls._ASYNC_CLIENTS[io_loop] = instance
 #            return instance
-    
+
     def __init__(self, servers, debug=0, io_loop=None):
         io_loop = io_loop or ioloop.IOLoop.instance()
         self.io_loop = io_loop
@@ -184,7 +188,7 @@ class Client(object):
 #        self.set_servers(servers)
 #        self.debug = debug
 #        self.stats = {}
-    
+
     def set_servers(self, servers):
         """
         Set the pool of servers used by this client.
@@ -203,7 +207,7 @@ class Client(object):
             sys.stderr.write("MemCached: %s\n" % str)
 
     def _statlog(self, func):
-        if not self.stats.has_key(func):
+        if func not in self.stats:
             self.stats[func] = 1
         else:
             self.stats[func] += 1
@@ -222,7 +226,7 @@ class Client(object):
                 self.buckets.append(server)
 
     def _get_server(self, key):
-        if type(key) == types.TupleType:
+        if isinstance(key, types.TupleType):
             serverhash = key[0]
             key = key[1]
         else:
@@ -239,28 +243,27 @@ class Client(object):
     def disconnect_all(self):
         for s in self.servers:
             s.close_socket()
-    
+
     def delete(self, key, time=0, callback=None):
         '''Deletes a key from the memcache.
-        
+
         @return: Nonzero on success.
         @rtype: int
         '''
         server, key = self._get_server(key)
         if not server:
-            self.finish(partial(callback,0))
+            self.finish(partial(callback, 0))
         self._statlog('delete')
         if time:
             cmd = "delete %s %d" % (key, time)
         else:
             cmd = "delete %s" % key
 
-        server.send_cmd(cmd, callback=partial(self._delete_send_cb,server, callback))
-        
+        server.send_cmd(cmd, callback=partial(self._delete_send_cb, server, callback))
+
     def _delete_send_cb(self, server, callback):
-        server.expect("DELETED",callback=partial(self._expect_cb, callback=callback))
-    
-        
+        server.expect("DELETED", callback=partial(self._expect_cb, callback=callback))
+
 #        except socket.error, msg:
 #            server.mark_dead(msg[1])
 #            return 0
@@ -311,13 +314,13 @@ class Client(object):
         cmd = "%s %s %d" % (cmd, key, delta)
 
         server.send_cmd(cmd, callback=partial(self._send_incrdecr_check_cb,server, callback))
-        
+
     def _send_incrdecr_cb(self, server, callback):
         server.readline(callback=partial(self._send_incrdecr_check_cb, callback=callback))
-    
+
     def _send_incrdecr_check_cb(self, line, callback):
         self.finish(partial(callback,int(line)))
-        
+
 #        except socket.error, msg:
 #            server.mark_dead(msg[1])
 #            return None
@@ -325,23 +328,25 @@ class Client(object):
     def add(self, key, val, time=0, callback=None):
         '''
         Add new key with value.
-        
+
         Like L{set}, but only stores in memcache if the key doesn't already exist.
 
         @return: Nonzero on success.
         @rtype: int
         '''
         self._set("add", key, val, time, callback)
+
     def replace(self, key, val, time=0, callback=None):
         '''Replace existing key with value.
-        
-        Like L{set}, but only stores in memcache if the key already exists.  
+
+        Like L{set}, but only stores in memcache if the key already exists.
         The opposite of L{add}.
 
         @return: Nonzero on success.
         @rtype: int
         '''
         self._set("replace", key, val, time, callback)
+
     def set(self, key, val, time=0, callback=None):
         '''Unconditionally sets a key to a given value in the memcache.
 
@@ -355,11 +360,11 @@ class Client(object):
         @rtype: int
         '''
         self._set("set", key, val, time, callback)
-    
+
     def _set(self, cmd, key, val, time, callback):
         server, key = self._get_server(key)
         if not server:
-            self.finish(partial(callback,0))
+            self.finish(partial(callback, 0))
 
         self._statlog(cmd)
 
@@ -375,11 +380,11 @@ class Client(object):
         else:
             flags |= Client._FLAG_PICKLE
             val = pickle.dumps(val, 2)
-        
+
         fullcmd = "%s %s %d %d %d\r\n%s" % (cmd, key, flags, time, len(val), val)
-        
+
         server.send_cmd(fullcmd, callback=partial(self._set_send_cb, server=server, callback=callback))
-        
+
     def _set_send_cb(self, server, callback):
         server.expect("STORED", callback=partial(self._expect_cb, value=None, callback=callback))
 #        except socket.error, msg:
@@ -389,7 +394,7 @@ class Client(object):
 
     def get(self, key, callback):
         '''Retrieves a key from the memcache.
-        
+
         @return: The value or None.
         '''
         server, key = self._get_server(key)
@@ -399,22 +404,22 @@ class Client(object):
         self._statlog('get')
 
         server.send_cmd("get %s" % key, partial(self._get_send_cb, server=server, callback=callback))
-        
+
     def _get_send_cb(self, server, callback):
         self._expectvalue(server, line=None, callback=partial(self._get_expectval_cb, server=server, callback=callback))
-    
+
     def _get_expectval_cb(self, rkey, flags, rlen, server, callback):
         if not rkey:
-            self.finish(partial(callback,None))
+            self.finish(partial(callback, None))
             return
         self._recv_value(server, flags, rlen, partial(self._get_recv_cb, server=server, callback=callback))
-        
+
     def _get_recv_cb(self, value, server, callback):
         server.expect("END", partial(self._expect_cb, value=value, callback=callback))
-        
+
     def _expect_cb(self, expected=None, value=None, callback=None):
 #        print "in expect cb"
-        self.finish(partial(callback,value))
+        self.finish(partial(callback, value))
 #        except (_Error, socket.error), msg:
 #            if type(msg) is types.TupleType:
 #                msg = msg[1]
@@ -441,10 +446,9 @@ class Client(object):
             callback(None, None, None)
 
     def _recv_value(self, server, flags, rlen, callback):
-        rlen += 2 # include \r\n
-        server.recv(rlen, partial(self._recv_value_cb,rlen=rlen, flags=flags, callback=callback))
-        
-        
+        rlen += 2  # include \r\n
+        server.recv(rlen, partial(self._recv_value_cb, rlen=rlen, flags=flags, callback=callback))
+
     def _recv_value_cb(self, buf, flags, rlen, callback):
         if len(buf) != rlen:
             raise _Error("received %d bytes when expecting %d" % (len(buf), rlen))
@@ -463,13 +467,13 @@ class Client(object):
         else:
             self.debuglog("unknown flags on get: %x\n" % flags)
 
-        self.finish(partial(callback,val))
-        
+        self.finish(partial(callback, val))
+
     def finish(self, callback):
         callback()
 #        self.disconnect_all()
 
-    
+
 class _Host:
     _DEAD_RETRY = 30  # number of seconds before retrying a dead server.
 
@@ -510,7 +514,7 @@ class _Host:
         return 0
 
     def mark_dead(self, reason):
-        print "MemCache: %s: %s.  Marking dead." % (self, reason)
+        print("MemCache: %s: %s.  Marking dead." % (self, reason))
         self.deaduntil = time.time() + _Host._DEAD_RETRY
         self.close_socket()
         
@@ -530,7 +534,7 @@ class _Host:
             else:
                 s.connect((self.ip, self.port))
         except socket.error, msg:
-            print "Can't open socket", msg[1]
+            print("Can't open socket", msg[1])
             self.mark_dead("connect: %s" % msg[1])
             return None
         self.socket = s
@@ -578,10 +582,9 @@ def _doctest():
     return doctest.testmod(memcache, globs=globs)
 
 if __name__ == "__main__":
-    print "Testing docstrings..."
+    print("Testing docstrings...")
     _doctest()
-    print "Running tests:"
-    print
+    print("Running tests:\n")
     #servers = ["127.0.0.1:11211", "127.0.0.1:11212"]
     servers = ["127.0.0.1:11211"]
     mc = Client(servers, debug=1)
@@ -590,57 +593,60 @@ if __name__ == "__main__":
         if not isinstance(val, types.StringTypes):
             return "%s (%s)" % (val, type(val))
         return "%s" % val
+
     def test_setget(key, val):
-        print "Testing set/get {'%s': %s} ..." % (to_s(key), to_s(val)),
+        print("Testing set/get {'%s': %s} ..." % (to_s(key), to_s(val)))
         mc.set(key, val)
         newval = mc.get(key)
         if newval == val:
-            print "OK"
+            print("OK")
             return 1
         else:
-            print "FAIL"
+            print("FAIL")
             return 0
 
     class FooStruct:
         def __init__(self):
             self.bar = "baz"
+
         def __str__(self):
-            return "A FooStruct"
+            return("A FooStruct")
+
         def __eq__(self, other):
             if isinstance(other, FooStruct):
                 return self.bar == other.bar
             return 0
-        
+
     test_setget("a_string", "some random string")
     test_setget("an_integer", 42)
-    if test_setget("long", long(1<<30)):
-        print "Testing delete ...",
+    if test_setget("long", long(1 << 30)):
+        print("Testing delete ...")
         if mc.delete("long"):
-            print "OK"
+            print("OK")
         else:
-            print "FAIL"
-    print "Testing get_multi ...",
-    print mc.get_multi(["a_string", "an_integer"])
+            print("FAIL")
+    print("Testing get_multi ...")
+    print(mc.get_multi(["a_string", "an_integer"]))
 
-    print "Testing get(unknown value) ...",
-    print to_s(mc.get("unknown_value"))
+    print("Testing get(unknown value) ...")
+    print(to_s(mc.get("unknown_value")))
 
     f = FooStruct()
     test_setget("foostruct", f)
 
-    print "Testing incr ...",
+    print("Testing incr ...")
     x = mc.incr("an_integer", 1)
     if x == 43:
-        print "OK"
+        print("OK")
     else:
-        print "FAIL"
+        print("FAIL")
 
-    print "Testing decr ...",
+    print("Testing decr ...")
     x = mc.decr("an_integer", 1)
     if x == 42:
-        print "OK"
+        print("OK")
     else:
-        print "FAIL"
+        print("FAIL")
 
 
 
