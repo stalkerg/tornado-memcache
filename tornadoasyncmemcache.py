@@ -517,7 +517,7 @@ class _Host:
         print("MemCache: %s: %s.  Marking dead." % (self, reason))
         self.deaduntil = time.time() + _Host._DEAD_RETRY
         self.close_socket()
-        
+
     def _get_socket(self):
         if self._check_dead():
             return None
@@ -525,7 +525,7 @@ class _Host:
             return self.socket
         if self.unix:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        else:        
+        else:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Python 2.3-ism:  s.settimeout(1)
         try:
@@ -533,15 +533,15 @@ class _Host:
                 s.connect(self.unix)
             else:
                 s.connect((self.ip, self.port))
-        except socket.error, msg:
+        except socket.error as msg:
             print("Can't open socket", msg[1])
             self.mark_dead("connect: %s" % msg[1])
             return None
         self.socket = s
         self.stream = iostream.IOStream(s)
-        self.stream.debug=True
+        self.stream.debug = True
         return s
-    
+
     def close_socket(self):
         if self.socket:
 #            self.socket.close()
